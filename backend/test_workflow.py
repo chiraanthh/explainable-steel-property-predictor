@@ -44,10 +44,20 @@ def run_tests():
             print(f"Number of features returned: {len(features)}")
             if features:
                 print("First feature sample:", json.dumps(features[0], indent=2))
-                
-            # The dependence data is computed on the frontend, so it's not expected here.
         else:
             print("FAILED /explain:")
+            print(response.text)
+
+        print("\nTesting /dependence endpoint...")
+        response = client.post("/dependence", json={"features": payload, "feature": "ni", "points": 5})
+        if response.status_code == 200:
+            print("SUCCESS /dependence:")
+            data = response.json()
+            print(f"Feature: {data.get('feature')} | current value: {data.get('current_value')}")
+            print(f"Sweep points returned: {len(data.get('points', []))}")
+            print("Points:", json.dumps(data.get('points', []), indent=2))
+        else:
+            print("FAILED /dependence:")
             print(response.text)
 
 if __name__ == "__main__":

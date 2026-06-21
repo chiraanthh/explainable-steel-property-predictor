@@ -1,5 +1,5 @@
-import { FlaskConical, Beaker } from "lucide-react";
-import { compositionFields, processingFields } from "../data/features";
+import { FlaskConical } from "lucide-react";
+import { compositionFields } from "../data/features";
 import NumericField from "./NumericField";
 
 export default function PredictionForm({ values, errors, isLoading, onChange, onSubmit }) {
@@ -12,7 +12,7 @@ export default function PredictionForm({ values, errors, isLoading, onChange, on
         </div>
         <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
           {compositionFields.map((field) => (
-            <div key={field.name} className={field.name === 'Fe' ? 'md:col-span-1 rounded-xl border border-primary-500/30 bg-primary-500/5 p-1' : ''}>
+            <div key={field.name} className={field.name === 'Fe' ? 'md:col-span-1 rounded-xl border border-primary-500/30 bg-primary-50 p-1' : ''}>
               <NumericField
                 field={field}
                 value={values[field.name]}
@@ -20,27 +20,9 @@ export default function PredictionForm({ values, errors, isLoading, onChange, on
                 onChange={onChange}
               />
               {field.name === 'Fe' && (
-                <p className="mt-1 text-[10px] uppercase tracking-wider font-bold text-primary-400 text-center">Balance Element (Auto)</p>
+                <p className="mt-1 text-[10px] uppercase tracking-wider font-bold text-primary-600 text-center">Balance Element (Auto)</p>
               )}
             </div>
-          ))}
-        </div>
-      </section>
-
-      <section className="panel group">
-        <div className="panel-heading">
-          <Beaker size={20} className="text-secondary-400 group-hover:animate-pulse" />
-          <h2>Processing Parameters</h2>
-        </div>
-        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-          {processingFields.map((field) => (
-            <NumericField
-              key={field.name}
-              field={field}
-              value={values[field.name]}
-              error={errors[field.name]}
-              onChange={onChange}
-            />
           ))}
         </div>
       </section>

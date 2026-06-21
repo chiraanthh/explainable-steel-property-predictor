@@ -64,21 +64,3 @@ export function toWaterfallRows(explanation) {
     },
   ];
 }
-
-export function toDependenceRows(selectedFeature, formValues, explanation) {
-  const selected = explanation?.features?.find((feature) => feature.name === selectedFeature);
-  if (!selected) return [];
-
-  const center = Number(formValues[selectedFeature]);
-  const shapValue = Number(selected.shap_value);
-  const span = center === 0 ? 1 : Math.abs(center) * 0.35;
-
-  return [-2, -1, 0, 1, 2].map((step) => {
-    const featureValue = Math.max(0, center + step * span * 0.5);
-    const scale = center === 0 ? step * 0.25 : (featureValue - center) / Math.max(Math.abs(center), 1);
-    return {
-      featureValue: Number(featureValue.toFixed(4)),
-      shapValue: Number((shapValue * (1 + scale)).toFixed(4)),
-    };
-  });
-}

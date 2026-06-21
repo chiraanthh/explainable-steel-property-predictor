@@ -2,7 +2,7 @@ import { Atom, BarChart3, Info, Scale } from "lucide-react";
 
 export default function Header({ activePage, onNavigate }) {
   return (
-    <header className="sticky top-0 z-30 border-b border-slate-800/50 bg-[#0a0a0f]/80 backdrop-blur-xl">
+    <header className="sticky top-0 z-30 border-b border-slate-200 bg-white/85 backdrop-blur-xl">
       <div className="mx-auto flex max-w-7xl items-center justify-between px-5 py-3">
         <button
           type="button"
@@ -10,14 +10,14 @@ export default function Header({ activePage, onNavigate }) {
           className="flex items-center gap-3 text-left group"
           aria-label="Go to home"
         >
-          <span className="grid h-10 w-10 place-items-center rounded-lg bg-gradient-to-br from-primary-600 to-secondary-600 text-white shadow-glow group-hover:shadow-glow-purple transition-all duration-300">
+          <span className="grid h-10 w-10 place-items-center rounded-lg bg-gradient-to-br from-primary-500 to-secondary-600 text-white shadow-glow group-hover:shadow-glow-purple transition-all duration-300">
             <Atom size={20} />
           </span>
           <span>
-            <span className="block text-sm font-semibold uppercase tracking-[0.18em] text-slate-400 group-hover:text-primary-400 transition-colors">
+            <span className="block text-xs font-semibold uppercase tracking-[0.18em] text-slate-500 group-hover:text-primary-600 transition-colors">
               Explainable Material
             </span>
-            <span className="block text-lg font-bold text-slate-100">Property Predictor</span>
+            <span className="block text-lg font-bold text-slate-900">Property Predictor</span>
           </span>
         </button>
 

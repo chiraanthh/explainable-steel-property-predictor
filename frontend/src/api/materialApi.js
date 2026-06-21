@@ -24,3 +24,7 @@ export function predictMaterial(payload) {
 export function explainMaterial(payload) {
   return postJson("/explain", payload);
 }
+
+export function dependenceMaterial(payload, feature, points = 25) {
+  return postJson("/dependence", { features: payload, feature, points });
+}

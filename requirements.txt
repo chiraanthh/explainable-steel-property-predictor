@@ -1,7 +1,12 @@
-fastapi
-uvicorn[standard]
-scikit-learn
-pandas
-numpy
-shap
-joblib
+# Pinned for reproducible installs (Windows/macOS/Linux).
+# The committed model.pkl is trained against the scikit-learn version below;
+# pinning avoids "InconsistentVersionWarning" / invalid predictions. If the
+# installed versions ever drift, the backend auto-retrains the model on startup.
+fastapi==0.138.0
+uvicorn[standard]==0.49.0
+scikit-learn==1.9.0
+pandas==3.0.3
+numpy==2.4.6
+shap==0.52.0
+joblib==1.5.3
+httpx==0.28.1

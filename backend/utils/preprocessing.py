@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from functools import lru_cache
 from typing import Any
 
 import pandas as pd
@@ -89,6 +90,43 @@ def preprocess_input(payload: dict[str, Any]) -> pd.DataFrame:
         row[feature] = numeric_value
 
     return pd.DataFrame([row], columns=FEATURE_COLUMNS)
+
+
+@lru_cache(maxsize=4)
+def feature_ranges(dataset_path: str) -> dict[str, tuple[float, float]]:
+    """Return the observed (min, max) for every feature in the training dataset.
+
+    These bounds drive the sensitivity/dependence sweep so the chart only explores
+    physically realistic composition values the model was actually trained on.
+    """
+    df = pd.read_csv(dataset_path)
+    ranges: dict[str, tuple[float, float]] = {}
+    for column in FEATURE_COLUMNS:
+        if column in df.columns:
+            ranges[column] = (float(df[column].min()), float(df[column].max()))
+    return ranges
+
+
+def sweep_feature(
+    base_row: pd.DataFrame,
+    feature: str,
+    low: float,
+    high: float,
+    points: int,
+) -> pd.DataFrame:
+    """Build `points` rows identical to base_row but with `feature` swept low..high."""
+    if feature not in FEATURE_COLUMNS:
+        raise InputValidationError(f"Unknown feature '{feature}'.")
+    if points < 2:
+        points = 2
+
+    step = (high - low) / (points - 1)
+    rows = []
+    for index in range(points):
+        row = base_row.iloc[0].copy()
+        row[feature] = max(0.0, low + step * index)
+        rows.append(row)
+    return pd.DataFrame(rows, columns=FEATURE_COLUMNS).reset_index(drop=True)
 
 
 def preprocess_training_data(dataset_path: str) -> tuple[pd.DataFrame, pd.Series]:

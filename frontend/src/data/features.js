@@ -15,15 +15,8 @@ export const compositionFields = [
   { name: "ti", label: "Titanium", symbol: "Ti", defaultValue: 1.55 },
 ];
 
-export const processingFields = [
-  { name: "temperature", label: "Temperature", unit: "C", defaultValue: 500 },
-  { name: "density", label: "Density", unit: "g/cm3", defaultValue: 7.8 },
-  { name: "cooling_rate", label: "Cooling Rate", unit: "C/s", defaultValue: 12 },
-  { name: "holding_time", label: "Holding Time", unit: "min", defaultValue: 45 },
-];
-
 export function initialFormState() {
-  return [...compositionFields, ...processingFields].reduce((state, field) => {
+  return compositionFields.reduce((state, field) => {
     state[field.name] = String(field.defaultValue);
     return state;
   }, {});
