@@ -1,0 +1,105 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background-color: #0a0a0f;
+  color: #e2e8f0;
+}
+
+@layer components {
+  .nav-button {
+    @apply inline-flex h-10 items-center gap-2 rounded-lg px-4 text-sm font-semibold text-slate-400 transition-all duration-300 hover:bg-white/5 hover:text-slate-100;
+    border: 1px solid transparent;
+  }
+  .nav-button:hover {
+    border-color: rgba(51, 65, 85, 0.6);
+  }
+
+  .nav-button-active {
+    @apply inline-flex h-10 items-center gap-2 rounded-lg px-4 text-sm font-semibold text-[#22d3ee];
+    border: 1px solid rgba(6, 182, 212, 0.3);
+    background-color: rgba(6, 182, 212, 0.1);
+    box-shadow: inset 0 0 20px rgba(6, 182, 212, 0.1);
+  }
+
+  .panel {
+    @apply rounded-xl p-6 backdrop-blur-xl relative overflow-hidden;
+    background-color: rgba(18, 18, 26, 0.8);
+    border: 1px solid rgba(30, 30, 46, 1);
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+  }
+
+  .panel::before {
+    content: '';
+    @apply absolute inset-0 pointer-events-none;
+    background: linear-gradient(135deg, rgba(255, 255, 255, 0.05) 0%, rgba(255, 255, 255, 0.01) 100%);
+  }
+
+  .panel-heading {
+    @apply mb-5 flex items-center gap-3 text-slate-100 relative z-10;
+  }
+
+  .panel-heading h2,
+  .panel-heading h3 {
+    @apply text-lg font-bold tracking-wide;
+  }
+
+  .input-field {
+    @apply h-11 w-full rounded-lg px-4 text-sm font-medium text-slate-100 outline-none transition-all duration-300;
+    background-color: rgba(10, 10, 15, 0.8);
+    border: 1px solid rgba(51, 65, 85, 0.8);
+  }
+  .input-field:focus {
+    border-color: #06b6d4;
+    box-shadow: 0 0 0 2px rgba(6, 182, 212, 0.3), 0 0 15px rgba(6, 182, 212, 0.3);
+  }
+
+  .input-error {
+    border-color: #ef4444 !important;
+  }
+  .input-error:focus {
+    border-color: #ef4444 !important;
+    box-shadow: 0 0 0 2px rgba(239, 68, 68, 0.3), 0 0 15px rgba(239, 68, 68, 0.3) !important;
+  }
+
+  .primary-button {
+    @apply relative inline-flex h-12 items-center justify-center gap-2 rounded-lg px-6 text-sm font-bold text-white shadow-lg transition-all duration-300 hover:scale-[1.02] disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:scale-100;
+    background: linear-gradient(to right, #0891b2, #9333ea);
+  }
+  .primary-button:hover {
+    box-shadow: 0 0 20px rgba(6, 182, 212, 0.4);
+  }
+
+  .stat-tile {
+    @apply flex items-center gap-3 rounded-lg px-4 py-3 text-sm font-bold text-slate-300 shadow-sm backdrop-blur-md transition-all duration-300;
+    border: 1px solid rgba(30, 30, 46, 1);
+    background-color: rgba(18, 18, 26, 0.5);
+  }
+  .stat-tile:hover {
+    border-color: rgba(51, 65, 85, 0.8);
+    background-color: rgba(18, 18, 26, 0.8);
+  }
+}
+
+.hero-grid {
+  background:
+    linear-gradient(90deg, rgba(6, 182, 212, 0.05) 1px, transparent 1px),
+    linear-gradient(rgba(168, 85, 247, 0.05) 1px, transparent 1px),
+    #0a0a0f;
+  background-size: 50px 50px;
+  position: relative;
+}
+
+.hero-grid::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(circle at center, transparent 0%, #0a0a0f 80%);
+  pointer-events: none;
+}
