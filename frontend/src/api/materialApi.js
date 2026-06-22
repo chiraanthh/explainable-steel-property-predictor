@@ -17,6 +17,11 @@ async function postJson(path, payload) {
   return data;
 }
 
+export async function fetchHealth() {
+  const response = await fetch(`${API_BASE_URL}/health`);
+  return response.json();
+}
+
 export function predictMaterial(payload) {
   return postJson("/predict", payload);
 }

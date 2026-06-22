@@ -143,9 +143,20 @@ app.add_middleware(
 
 @app.get("/health")
 def health() -> dict[str, Any]:
+    from .train_model import model_metrics
+
+    metrics = model_metrics()
     return {
         "status": "ok" if prediction_service and shap_service else "model_unavailable",
-        "targets": [{"key": t["key"], "label": t["label"], "unit": t["unit"]} for t in TARGETS],
+        "targets": [
+            {
+                "key": t["key"],
+                "label": t["label"],
+                "unit": t["unit"],
+                "metrics": metrics.get(t["key"]),
+            }
+            for t in TARGETS
+        ],
         "required_features": FEATURE_COLUMNS,
         "model_path": str(MODEL_PATH),
         "error": startup_error,

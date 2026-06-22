@@ -1,8 +1,9 @@
 import { Gauge } from "lucide-react";
 import { targets } from "../data/features";
 
-export default function PredictionResult({ result }) {
+export default function PredictionResult({ result, metrics }) {
   // result = { predictions: [{ key, label, prediction, unit }, ...] } or null
+  // metrics = { yield_strength: { r2, mae, samples }, ... } or null
   const byKey = new Map((result?.predictions ?? []).map((p) => [p.key, p]));
 
   return (
@@ -15,6 +16,7 @@ export default function PredictionResult({ result }) {
       <div className="mt-auto flex-1 flex flex-col justify-center gap-3">
         {targets.map((t, index) => {
           const p = byKey.get(t.key);
+          const m = metrics?.[t.key];
           const isPrimary = index === 0;
           return (
             <div
@@ -25,7 +27,17 @@ export default function PredictionResult({ result }) {
                   : "border-slate-200 bg-slate-50"
               }`}
             >
-              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">{t.label}</p>
+              <div className="flex items-center justify-between">
+                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">{t.label}</p>
+                {m && (
+                  <span
+                    title={`Model accuracy on held-out test data: R² = ${m.r2}, MAE = ${m.mae} ${t.unit}`}
+                    className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-white border border-slate-200 text-slate-500"
+                  >
+                    R² {m.r2}
+                  </span>
+                )}
+              </div>
               <div className="mt-1 flex items-end gap-2">
                 <span
                   className={`font-extrabold tracking-tight ${
@@ -38,6 +50,9 @@ export default function PredictionResult({ result }) {
                 </span>
                 <span className="pb-1 text-base font-bold text-primary-500">{p?.unit ?? t.unit}</span>
               </div>
+              {m && (
+                <p className="mt-1 text-[11px] text-slate-400">± {m.mae} {t.unit} typical error</p>
+              )}
             </div>
           );
         })}

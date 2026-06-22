@@ -75,6 +75,11 @@ def model_format() -> str | None:
     return _read_meta().get("format")
 
 
+def model_metrics() -> dict:
+    """Return per-target {r2, mae, samples} accuracy from the last training run."""
+    return _read_meta().get("metrics", {})
+
+
 def train_model_if_missing(force: bool = False) -> Path:
     if MODEL_PATH.exists() and not force:
         print(f"Model already exists: {MODEL_PATH}")

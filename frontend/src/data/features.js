@@ -35,3 +35,25 @@ export function modelPayloadFromForm(values) {
     return payload;
   }, {});
 }
+
+// Update one composition field and auto-balance Iron (Fe) so the alloy totals 100%.
+// Shared by the Dashboard and Compare pages.
+export function applyCompositionChange(current, name, value) {
+  const next = { ...current, [name]: value };
+  const isComposition = compositionFields.some((f) => f.name === name) && name !== "Fe";
+  if (!isComposition) return next;
+
+  const totalOthers =
+    compositionFields
+      .filter((f) => f.name !== "Fe" && f.name !== name)
+      .reduce((sum, f) => sum + (Number(current[f.name]) || 0), 0) + (Number(value) || 0);
+
+  if (totalOthers > 100) {
+    const capped = 100 - (totalOthers - (Number(value) || 0));
+    next[name] = String(Math.max(0, Number(capped.toFixed(2))));
+    next.Fe = "0.00";
+  } else {
+    next.Fe = String((100 - totalOthers).toFixed(2));
+  }
+  return next;
+}

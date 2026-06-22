@@ -1,7 +1,7 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { AlertCircle, Scale, ArrowRight, ArrowDown, ArrowUp } from "lucide-react";
-import { predictMaterial, explainMaterial } from "../api/materialApi";
-import { compositionFields, initialFormState, modelPayloadFromForm, targets } from "../data/features";
+import { predictMaterial, explainMaterial, fetchHealth } from "../api/materialApi";
+import { applyCompositionChange, compositionFields, initialFormState, modelPayloadFromForm, targets } from "../data/features";
 import NumericField from "../components/NumericField";
 
 const predValue = (pred, key) => Number(pred?.predictions?.find((p) => p.key === key)?.prediction ?? 0);
@@ -35,14 +35,32 @@ export default function ComparePage() {
   const [isLoading, setIsLoading] = useState(false);
   const [apiError, setApiError] = useState("");
   const [results, setResults] = useState(null);
+  const [metrics, setMetrics] = useState(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    fetchHealth()
+      .then((health) => {
+        if (cancelled) return;
+        const map = {};
+        (health.targets ?? []).forEach((t) => {
+          if (t.metrics) map[t.key] = t.metrics;
+        });
+        setMetrics(map);
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   function handleChangeA(name, value) {
-    setValuesA((current) => ({ ...current, [name]: value }));
+    setValuesA((current) => applyCompositionChange(current, name, value));
     setErrorsA((current) => ({ ...current, [name]: undefined }));
   }
 
   function handleChangeB(name, value) {
-    setValuesB((current) => ({ ...current, [name]: value }));
+    setValuesB((current) => applyCompositionChange(current, name, value));
     setErrorsB((current) => ({ ...current, [name]: undefined }));
   }
 
@@ -119,9 +137,10 @@ export default function ComparePage() {
           <form onSubmit={handleCompare} className="space-y-6">
             <section className="panel">
               <div className="panel-heading">
-                <Scale size={20} className="text-primary-400" />
+                <Scale size={20} className="text-primary-500" />
                 <h2>Input Parameters</h2>
               </div>
+              <p className="-mt-3 mb-3 text-xs text-slate-500">Composition in weight %. Iron (Fe) auto-balances so each alloy totals 100%.</p>
               <div className="flex flex-col gap-2">
                 <div className="hidden md:flex flex-row gap-4 mb-2">
                   <div className="w-1/3"></div>
@@ -154,7 +173,17 @@ export default function ComparePage() {
                       return (
                         <div key={t.key} className="rounded-xl border border-slate-200 bg-slate-50 p-4">
                           <div className="flex items-center justify-between mb-2">
-                            <span className="text-sm font-bold text-slate-700">{t.label}</span>
+                            <span className="flex items-center gap-2 text-sm font-bold text-slate-700">
+                              {t.label}
+                              {metrics?.[t.key] && (
+                                <span
+                                  title={`Model accuracy: R² = ${metrics[t.key].r2}, MAE = ${metrics[t.key].mae} ${t.unit}`}
+                                  className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-white border border-slate-200 text-slate-500"
+                                >
+                                  R² {metrics[t.key].r2}
+                                </span>
+                              )}
+                            </span>
                             <div className="flex items-center gap-1.5">
                               {diff >= 0 ? <ArrowUp size={16} className="text-primary-600" /> : <ArrowDown size={16} className="text-destructive-500" />}
                               <span className={`text-sm font-bold ${diff >= 0 ? "text-primary-600" : "text-destructive-500"}`}>

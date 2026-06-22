@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
-import { AlertCircle, FileDown } from "lucide-react";
-import { dependenceMaterial, explainMaterial, predictMaterial } from "../api/materialApi";
-import { compositionFields, initialFormState, modelPayloadFromForm, targets } from "../data/features";
+import { AlertCircle, FileDown, RotateCcw } from "lucide-react";
+import { dependenceMaterial, explainMaterial, fetchHealth, predictMaterial } from "../api/materialApi";
+import { applyCompositionChange, compositionFields, initialFormState, modelPayloadFromForm, targets } from "../data/features";
 import ExplanationDashboard from "../components/ExplanationDashboard";
 import PredictionForm from "../components/PredictionForm";
 import PredictionResult from "../components/PredictionResult";
@@ -42,11 +42,42 @@ export default function DashboardPage() {
   const [selectedFeature, setSelectedFeature] = useState(compositionFields[0].name);
   const [isLoading, setIsLoading] = useState(false);
   const [apiError, setApiError] = useState("");
+  const [metrics, setMetrics] = useState(null);
 
   const completion = useMemo(() => {
     const filled = compositionFields.filter((field) => values[field.name] !== "").length;
     return Math.round((filled / compositionFields.length) * 100);
   }, [values]);
+
+  // Load per-property model accuracy (R²/MAE) once for display.
+  useEffect(() => {
+    let cancelled = false;
+    fetchHealth()
+      .then((health) => {
+        if (cancelled) return;
+        const map = {};
+        (health.targets ?? []).forEach((t) => {
+          if (t.metrics) map[t.key] = t.metrics;
+        });
+        setMetrics(map);
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  function handleReset() {
+    setValues(initialFormState());
+    setErrors({});
+    setPrediction(null);
+    setExplanation(null);
+    setSubmittedPayload(null);
+    setDependence(null);
+    setApiError("");
+    setSelectedTarget(targets[0].key);
+    setSelectedFeature(compositionFields[0].name);
+  }
 
   // Refetch the SHAP explanation whenever there is a submitted material or the user
   // switches which property to explain.
@@ -86,28 +117,7 @@ export default function DashboardPage() {
   }, [submittedPayload, selectedFeature, selectedTarget]);
 
   function handleChange(name, value) {
-    const isCompositionField = compositionFields.some((f) => f.name === name) && name !== "Fe";
-
-    setValues((current) => {
-      let nextValues = { ...current, [name]: value };
-
-      if (isCompositionField) {
-        // Auto-balance Iron (Fe) so the alloy composition stays at 100%.
-        const totalOthers = compositionFields
-          .filter((f) => f.name !== "Fe" && f.name !== name)
-          .reduce((sum, f) => sum + (Number(current[f.name]) || 0), 0) + (Number(value) || 0);
-
-        if (totalOthers > 100) {
-          const cappedValue = 100 - (totalOthers - (Number(value) || 0));
-          nextValues[name] = String(Math.max(0, Number(cappedValue.toFixed(2))));
-          nextValues.Fe = "0.00";
-        } else {
-          nextValues.Fe = String((100 - totalOthers).toFixed(2));
-        }
-      }
-
-      return nextValues;
-    });
+    setValues((current) => applyCompositionChange(current, name, value));
     setErrors((current) => ({ ...current, [name]: undefined }));
   }
 
@@ -201,15 +211,26 @@ export default function DashboardPage() {
             <h1 className="mt-1 text-4xl font-bold text-slate-900 tracking-tight">Steel Alloy Property Predictor</h1>
           </div>
           <div className="flex flex-col gap-3">
-            {prediction && (
+            <div className="flex gap-2">
               <button
-                onClick={handleDownloadReport}
-                className="inline-flex items-center justify-center gap-2 rounded-lg bg-white border border-primary-500/30 px-4 py-2 text-sm font-bold text-primary-600 hover:bg-primary-50 transition-colors"
+                onClick={handleReset}
+                type="button"
+                className="inline-flex flex-1 items-center justify-center gap-2 rounded-lg bg-white border border-slate-300 px-4 py-2 text-sm font-bold text-slate-600 hover:bg-slate-50 hover:text-slate-900 transition-colors"
               >
-                <FileDown size={16} />
-                Download PDF Report
+                <RotateCcw size={16} />
+                Reset
               </button>
-            )}
+              {prediction && (
+                <button
+                  onClick={handleDownloadReport}
+                  type="button"
+                  className="inline-flex flex-1 items-center justify-center gap-2 rounded-lg bg-white border border-primary-500/30 px-4 py-2 text-sm font-bold text-primary-600 hover:bg-primary-50 transition-colors"
+                >
+                  <FileDown size={16} />
+                  PDF Report
+                </button>
+              )}
+            </div>
             <div className="w-full rounded-xl border border-slate-200 bg-white p-4 shadow-panel md:w-64">
               <div className="mb-2 flex items-center justify-between text-sm font-semibold text-slate-500">
                 <span>Input completion</span>
@@ -244,7 +265,7 @@ export default function DashboardPage() {
             onChange={handleChange}
             onSubmit={handleSubmit}
           />
-          <PredictionResult result={prediction} />
+          <PredictionResult result={prediction} metrics={metrics} />
         </div>
 
         <div className="mt-8">
