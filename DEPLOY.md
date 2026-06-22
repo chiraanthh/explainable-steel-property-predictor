@@ -28,11 +28,18 @@ Notes:
 
 Prereqs: `npm i -g firebase-tools` and a Firebase project (create one at <https://console.firebase.google.com>).
 
-1. Put your Render URL into [`frontend/.env.production`](frontend/.env.production):
+1. Create `frontend/.env.production` from the template and set your Render URL
+   (this file is gitignored — it holds your own deployment URL):
+   ```bash
+   cp frontend/.env.production.example frontend/.env.production
+   # then edit it:
+   # VITE_API_BASE_URL=https://steel-property-api.onrender.com
    ```
-   VITE_API_BASE_URL=https://steel-property-api.onrender.com
+2. Create `.firebaserc` from the template and set your Firebase **project ID**:
+   ```bash
+   cp .firebaserc.example .firebaserc
+   # replace YOUR_FIREBASE_PROJECT_ID with your project id
    ```
-2. Put your Firebase **project ID** into [`.firebaserc`](.firebaserc) (replace `YOUR_FIREBASE_PROJECT_ID`).
 3. Build the frontend with the production API URL baked in:
    ```bash
    cd frontend

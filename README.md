@@ -1,76 +1,206 @@
-# Explainable AI-Based Mechanical Property Prediction of Steel Alloys Using SHAP
+# 🔩 Explainable AI for Steel Alloy Property Prediction
 
-## Overview
-This repository contains a polished academic research prototype that bridges the gap between advanced Machine Learning and trustworthy material science. The system predicts three mechanical properties of **steel alloys** — **Yield Strength**, **Tensile Strength** (MPa), and **Elongation** (%) — from their chemical composition, and importantly, explains those predictions using **SHAP (SHapley Additive exPlanations)**.
+<div align="center">
 
-The model is trained on a curated **steel-alloy dataset** (`steel_strength.csv`) of 14 compositional elements — Iron (Fe) as the balance element, plus Carbon, Manganese, Silicon, Chromium, Nickel, Molybdenum, Vanadium, Nitrogen, Niobium, Cobalt, Tungsten, Aluminium and Titanium.
+[![Live Demo](https://img.shields.io/badge/Live%20Demo-steel--property.web.app-blue?style=for-the-badge&logo=firebase)](https://steel-property.web.app/)
+[![Backend](https://img.shields.io/badge/API-Render-46E3B7?style=for-the-badge&logo=render)](https://steel-property.web.app/)
+[![React](https://img.shields.io/badge/React-Vite-61DAFB?style=for-the-badge&logo=react)](https://vitejs.dev/)
+[![FastAPI](https://img.shields.io/badge/FastAPI-Python-009688?style=for-the-badge&logo=fastapi)](https://fastapi.tiangolo.com/)
+[![SHAP](https://img.shields.io/badge/XAI-SHAP-FF6B6B?style=for-the-badge)](https://shap.readthedocs.io/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow?style=for-the-badge)](LICENSE)
 
-Traditional steel property testing is expensive, destructive, and time-consuming. While ML models offer rapid predictions, their "black-box" nature hinders trust. By utilizing SHAP, this prototype unpacks the exact marginal contribution of every alloying element, transforming an opaque model into a transparent, scientifically valid instrument.
+**Predict mechanical properties of steel alloys from chemical composition — with full, game-theoretic explainability via SHAP.**
 
-## Key Features
+[**🚀 Try the Live Demo →**](https://steel-property.web.app/)
 
-1. **Prediction Dashboard**:
-   - A clean, responsive **light-mode UI**.
-   - Composition input form with auto-balancing Iron (Fe) so the alloy always totals 100%.
-   - Real-time API integration with the FastAPI backend.
+> ⚠️ **Cold Start Notice:** The backend runs on Render's free tier. First request may take **~60 seconds** to boot. Subsequent calls are instant.
 
-2. **SHAP Explanation Analytics**:
-   - **Feature Importance**: Bar chart depicting the relative impact of each element.
-   - **Waterfall Chart**: Individual explanation breakdown showing the base prediction, positive/negative element contributions, and the final predicted Yield Strength.
-   - **Sensitivity Analysis**: A real Individual Conditional Expectation (ICE) curve — the backend holds every other element fixed and sweeps the selected element across the range seen in the steel dataset, returning the model's *actual* predicted strength at each value (no synthetic approximation).
+</div>
 
-3. **Material Comparison Feature**:
-   - Side-by-side analysis of two steel-alloy profiles (Material A vs. Material B).
-   - Instant calculation of Prediction Differences (Δ MPa) and the top SHAP value shifts driving that change.
+---
 
-4. **PDF Report Generation**:
-   - 1-click generation of academic reports detailing input parameters, predicted strength, and the top SHAP explanations.
+## 📸 Dashboard Preview
 
-## Technology Stack
-- **Frontend**: React (Vite), Tailwind CSS, Recharts, jsPDF, Lucide Icons.
-- **Backend**: FastAPI, Scikit-Learn (RandomForestRegressor), SHAP, Pandas.
+**Home**
 
-## Model
-One `RandomForestRegressor` per property, trained on `steel_strength.csv` (held-out split):
+![Home Page](assets/screenshot_home.png)
+
+**SHAP Explanation Dashboard** — Feature importance, waterfall chart, and ICE sensitivity curve
+
+![SHAP Dashboard](assets/screenshot_shap_dashboard.png)
+
+**Material Comparison** — Side-by-side A vs. B with SHAP feature deltas
+
+![Compare Page](assets/screenshot_compare.png)
+
+> Place these images in `assets/` at the repo root for GitHub to render them.
+
+---
+
+## 🎯 What This Does
+
+Traditional steel property testing is **destructive, expensive, and slow**. ML models predict fast — but are black boxes. This tool bridges both worlds:
+
+- **Predicts** Yield Strength, Tensile Strength (MPa), and Elongation (%) from 14 compositional elements
+- **Explains** every prediction with SHAP values — which elements pushed the result up or down, and by how much
+- **Compares** two alloy profiles side-by-side with delta analysis
+- **Exports** one-click PDF reports suitable for academic or engineering use
+
+---
+
+## ✨ Key Features
+
+### 🔮 Prediction Dashboard
+- Composition input form with **auto-balancing Iron (Fe)** (always sums to 100%)
+- Real-time predictions via FastAPI backend
+- Responsive light-mode UI
+
+### 📊 SHAP Explainability
+| Feature | Description |
+|---|---|
+| **Feature Importance Bar Chart** | Global impact ranking of each alloying element |
+| **Waterfall Chart** | Per-prediction breakdown: base value + element contributions = final output |
+| **ICE Sensitivity Curve** | Sweeps one element across its real data range, holding all others fixed — true model behavior, no approximations |
+
+### ⚖️ Material Comparison
+- A vs. B side-by-side analysis
+- Δ MPa difference calculation
+- Top SHAP shift drivers identified automatically
+
+### 📄 PDF Report Export
+- Academic-grade report with input composition, predictions, and top SHAP explanations
+- One click, no server dependency
+
+---
+
+## 🤖 Model Performance
+
+Trained with `RandomForestRegressor` (one per property), 80/20 held-out split on `steel_strength.csv`:
 
 | Property | R² | MAE |
-| --- | --- | --- |
+|---|---|---|
 | Yield Strength | ≈ 0.82 | ≈ 79 MPa |
 | Tensile Strength | ≈ 0.88 | ≈ 71 MPa |
-| Elongation | ≈ 0.38 | ≈ 2.7 % |
+| Elongation (%) | ≈ 0.38 | ≈ 2.7 % |
 
-Elongation is inherently harder to predict from composition alone, so its R² is lower — this is expected for the dataset. Use the **Explaining** selector in the dashboard to view SHAP analysis for any of the three properties.
+> Elongation's lower R² is expected — it's governed by microstructure and processing history that composition alone cannot encode. This is a known limitation, not a modeling failure.
 
-The backend is **self-healing**: on startup it trains the model if `model.pkl` is missing, and automatically retrains it if the saved model's scikit-learn version differs from the installed one (avoiding `InconsistentVersionWarning` / invalid predictions). Dependency versions are pinned in `requirements.txt` for reproducible installs.
+**Self-healing backend:** On startup, the model trains automatically if `model.pkl` is missing, and retrains if the scikit-learn version has changed (prevents `InconsistentVersionWarning` silently corrupting predictions).
 
-## How to Run
+---
 
-### Quick start (Windows)
-From the project root, run `start.bat`. It launches the backend on port **8080**, the frontend on **5173**, and opens the browser.
+## 🏗️ Architecture
 
-### Manual setup
+```
+steel-alloy-xai/
+├── backend/
+│   ├── app.py              # FastAPI routes + SHAP computation
+│   ├── model.py            # RandomForest training + version check
+│   ├── test_workflow.py    # Smoke test
+│   └── steel_strength.csv  # Training dataset (14 elements, N alloys)
+├── frontend/
+│   ├── src/
+│   │   ├── components/     # Dashboard, SHAP charts, Comparison, PDF
+│   │   └── App.jsx
+│   ├── .env                # VITE_API_BASE_URL
+│   └── vite.config.js
+├── requirements.txt        # Pinned Python deps
+├── start.bat               # One-click Windows launcher
+└── assets/                 # README screenshots
+```
 
-**Backend** (run from the project **root**, not from `backend/`, because the app is a package):
+---
+
+## 🛠️ Tech Stack
+
+| Layer | Technology |
+|---|---|
+| Frontend | React (Vite), Tailwind CSS, Recharts, jsPDF, Lucide Icons |
+| Backend | FastAPI, Uvicorn |
+| ML | Scikit-Learn (RandomForestRegressor) |
+| Explainability | SHAP (SHapley Additive exPlanations) |
+| Deployment | Firebase Hosting (frontend) + Render (backend) |
+
+---
+
+## 🚀 Running Locally
+
+### Quick Start (Windows)
+```bash
+start.bat
+```
+Launches backend on `:8080`, frontend on `:5173`, opens browser.
+
+### Manual Setup
+
+**Backend** (run from project root, not `backend/`):
 ```bash
 python -m venv .venv
-# Windows: .venv\Scripts\activate     |  macOS/Linux: source .venv/bin/activate
+# Windows:
+.venv\Scripts\activate
+# macOS/Linux:
+source .venv/bin/activate
+
 pip install -r requirements.txt
 uvicorn backend.app:app --reload --port 8080
 ```
-The API is available at `http://127.0.0.1:8080` (docs at `/docs`). The model is trained automatically on first launch.
+- API: `http://127.0.0.1:8080`
+- Interactive docs: `http://127.0.0.1:8080/docs`
+- Model trains automatically on first launch
 
-**Frontend**:
+**Frontend:**
 ```bash
 cd frontend
 npm install
 npm run dev
 ```
-The web app is available at `http://localhost:5173`. The API base URL is configured in `frontend/.env` (`VITE_API_BASE_URL`, default `http://127.0.0.1:8080`).
+- App: `http://localhost:5173`
+- Configure API URL in `frontend/.env` via `VITE_API_BASE_URL`
 
-### Smoke test
+**Smoke test:**
 ```bash
 python -m backend.test_workflow
 ```
 
-## Academic Contribution
-By providing both accurate predictions and robust, game-theoretic explainability, this tool empowers materials scientists to discover complex nonlinear steel-alloying relationships without costly physical trials. It serves as a foundational prototype for integrating Explainable AI (XAI) into metallurgical engineering.
+---
+
+## 🔬 Academic Context
+
+This prototype demonstrates how **Explainable AI (XAI)** can be responsibly applied to materials engineering — a domain where "trust me, the model says so" is insufficient for adoption. SHAP provides game-theoretic guarantees (based on Shapley values from cooperative game theory) that each element's attributed contribution is **consistent, locally accurate, and additive**.
+
+The ICE curve implementation is real: the backend holds all other elements fixed at the input values and sweeps the selected element across its observed range in the training data — returning actual model outputs, not approximations or interpolations.
+
+This approach directly supports:
+- Accelerated alloy design without destructive testing
+- Hypothesis generation for metallurgists
+- Audit trails for ML-assisted engineering decisions
+
+---
+
+## 🤝 Contributing
+
+Contributions are welcome. Good starting points:
+
+- [ ] Add more alloy datasets (stainless, tool steels, HSLA)
+- [ ] Swap RandomForest for XGBoost / LightGBM and benchmark
+- [ ] Add SHAP interaction values for element-pair effects
+- [ ] Docker + docker-compose for one-command deployment
+- [ ] Unit tests for SHAP computation
+
+Open an issue to discuss, or fork and submit a PR.
+
+---
+
+## 📄 License
+
+MIT — free to use, modify, and distribute with attribution.
+
+---
+
+<div align="center">
+
+Built with 🔬 for materials scientists and ML engineers who believe models should explain themselves.
+
+⭐ **Star this repo if it helped you** — it supports continued development.
+
+</div>

@@ -22,3 +22,11 @@ uvicorn.err.log
 .DS_Store
 .idea/
 .vscode/
+
+# Firebase deploy cache
+.firebase/
+
+# Deploy-specific config (use the committed *.example templates instead).
+# These hold your own Render URL / Firebase project id — kept out of the repo.
+.firebaserc
+frontend/.env.production
