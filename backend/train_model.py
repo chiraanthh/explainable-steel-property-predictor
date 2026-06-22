@@ -8,6 +8,8 @@ PROJECT_DIR = BASE_DIR.parent
 sys.path.insert(0, str(PROJECT_DIR))
 
 import json
+import os
+import tempfile
 
 import joblib
 import sklearn
@@ -19,8 +21,36 @@ from backend.utils.preprocessing import TARGETS, TARGET_KEYS, preprocess_trainin
 
 
 DATASET_PATH = PROJECT_DIR / "steel_strength.csv"
-MODEL_PATH = BASE_DIR / "model" / "model.pkl"
-META_PATH = BASE_DIR / "model" / "model.meta.json"
+
+
+def _resolve_model_dir() -> Path:
+    """Pick a writable directory for the model artifact.
+
+    Prefers the bundled `backend/model` dir (where the committed model lives). On
+    read-only deploy filesystems it falls back to a temp dir so the self-healing
+    retrain can still write — the model just trains on first launch instead.
+    """
+    candidates = []
+    if os.getenv("MODEL_DIR"):
+        candidates.append(Path(os.environ["MODEL_DIR"]))
+    candidates.append(BASE_DIR / "model")
+    candidates.append(Path(tempfile.gettempdir()) / "steel_model")
+
+    for directory in candidates:
+        try:
+            directory.mkdir(parents=True, exist_ok=True)
+            probe = directory / ".write_test"
+            probe.write_text("ok")
+            probe.unlink()
+            return directory
+        except OSError:
+            continue
+    return BASE_DIR / "model"
+
+
+MODEL_DIR = _resolve_model_dir()
+MODEL_PATH = MODEL_DIR / "model.pkl"
+META_PATH = MODEL_DIR / "model.meta.json"
 
 # Bump when the on-disk model structure changes so old artifacts are retrained.
 MODEL_FORMAT = "multi-target-v1"

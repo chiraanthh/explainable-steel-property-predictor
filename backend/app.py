@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import os
 from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import Any
@@ -18,10 +19,10 @@ from .utils.preprocessing import (
 )
 
 
+from .train_model import DATASET_PATH, MODEL_PATH
+
 BASE_DIR = Path(__file__).resolve().parent
 PROJECT_DIR = BASE_DIR.parent
-MODEL_PATH = BASE_DIR / "model" / "model.pkl"
-DATASET_PATH = PROJECT_DIR / "steel_strength.csv"
 
 
 class MaterialFeatures(BaseModel):
@@ -114,15 +115,27 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
+# Allowed browser origins. Local dev ports are always allowed; deployment adds the
+# hosted frontend via the ALLOWED_ORIGINS env var (comma-separated, or "*" for any).
+_DEV_ORIGINS = [
+    "http://localhost:5173",
+    "http://127.0.0.1:5173",
+    "http://localhost:5174",
+    "http://127.0.0.1:5174",
+]
+_extra_origins = [o.strip() for o in os.getenv("ALLOWED_ORIGINS", "").split(",") if o.strip()]
+_allow_origins = _DEV_ORIGINS + _extra_origins
+_allow_credentials = True
+if "*" in _extra_origins:
+    # Browsers reject wildcard origin together with credentials; the API is stateless
+    # (no cookies), so disabling credentials is safe.
+    _allow_origins = ["*"]
+    _allow_credentials = False
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "http://localhost:5173",
-        "http://127.0.0.1:5173",
-        "http://localhost:5174",
-        "http://127.0.0.1:5174",
-    ],
-    allow_credentials=True,
+    allow_origins=_allow_origins,
+    allow_credentials=_allow_credentials,
     allow_methods=["*"],
     allow_headers=["*"],
 )

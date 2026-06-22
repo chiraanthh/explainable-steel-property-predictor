@@ -1,0 +1,20 @@
+# Render blueprint for the FastAPI backend.
+# Deploy: push to GitHub, then on https://render.com create a new "Blueprint"
+# from this repo. Render reads this file and provisions the service automatically.
+services:
+  - type: web
+    name: steel-property-api
+    runtime: python
+    plan: free
+    region: oregon
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn backend.app:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /health
+    envVars:
+      - key: PYTHON_VERSION
+        value: "3.13.4"
+      # Which browser origins may call the API. "*" allows any (simplest for a
+      # public demo). To lock it down, replace with your Firebase URL, e.g.
+      # https://your-project.web.app
+      - key: ALLOWED_ORIGINS
+        value: "*"
