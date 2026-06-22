@@ -15,6 +15,13 @@ export const compositionFields = [
   { name: "ti", label: "Titanium", symbol: "Ti", defaultValue: 1.55 },
 ];
 
+// Mechanical properties the model predicts (must match backend TARGETS keys).
+export const targets = [
+  { key: "yield_strength", label: "Yield Strength", unit: "MPa" },
+  { key: "tensile_strength", label: "Tensile Strength", unit: "MPa" },
+  { key: "elongation", label: "Elongation", unit: "%" },
+];
+
 export function initialFormState() {
   return compositionFields.reduce((state, field) => {
     state[field.name] = String(field.defaultValue);

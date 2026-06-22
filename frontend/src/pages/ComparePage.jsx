@@ -1,8 +1,10 @@
 import { useState } from "react";
 import { AlertCircle, Scale, ArrowRight, ArrowDown, ArrowUp } from "lucide-react";
 import { predictMaterial, explainMaterial } from "../api/materialApi";
-import { compositionFields, initialFormState, modelPayloadFromForm } from "../data/features";
+import { compositionFields, initialFormState, modelPayloadFromForm, targets } from "../data/features";
 import NumericField from "../components/NumericField";
+
+const predValue = (pred, key) => Number(pred?.predictions?.find((p) => p.key === key)?.prediction ?? 0);
 
 function validate(values) {
   const errors = {};
@@ -63,9 +65,9 @@ export default function ComparePage() {
 
       const [predA, expA, predB, expB] = await Promise.all([
         predictMaterial(payloadA),
-        explainMaterial(payloadA),
+        explainMaterial(payloadA, "yield_strength"),
         predictMaterial(payloadB),
-        explainMaterial(payloadB),
+        explainMaterial(payloadB, "yield_strength"),
       ]);
 
       setResults({ predA, expA, predB, expB });
@@ -140,49 +142,50 @@ export default function ComparePage() {
               <>
                 <section className="panel group">
                   <div className="panel-heading">
-                    <ArrowRight size={20} className="text-secondary-400" />
-                    <h2>Prediction Difference</h2>
+                    <ArrowRight size={20} className="text-secondary-500" />
+                    <h2>Predicted Properties</h2>
                   </div>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="rounded-xl border border-slate-200 bg-slate-50 p-6 text-center">
-                      <p className="text-sm font-semibold text-slate-500 uppercase tracking-widest mb-2">Material A</p>
-                      <span className="text-4xl font-bold text-slate-900">
-                        {Number(results.predA.prediction).toLocaleString(undefined, { maximumFractionDigits: 2 })}
-                      </span>
-                      <span className="ml-2 text-primary-600">{results.predA.unit}</span>
-                    </div>
-                    <div className="rounded-xl border border-slate-200 bg-slate-50 p-6 text-center">
-                      <p className="text-sm font-semibold text-slate-500 uppercase tracking-widest mb-2">Material B</p>
-                      <span className="text-4xl font-bold text-slate-900">
-                        {Number(results.predB.prediction).toLocaleString(undefined, { maximumFractionDigits: 2 })}
-                      </span>
-                      <span className="ml-2 text-secondary-600">{results.predB.unit}</span>
-                    </div>
-                  </div>
-
-                  {/* Delta Box */}
-                  <div className="mt-4 rounded-xl border border-primary-500/30 bg-primary-50 p-6 flex items-center justify-between">
-                    <span className="text-lg font-semibold text-slate-700">Difference (B - A):</span>
-                    <div className="flex items-center gap-2">
-                      {results.predB.prediction > results.predA.prediction ? (
-                        <ArrowUp className="text-primary-600" />
-                      ) : (
-                        <ArrowDown className="text-destructive-500" />
-                      )}
-                      <span className="text-3xl font-bold text-slate-900">
-                        {Math.abs(results.predB.prediction - results.predA.prediction).toLocaleString(undefined, { maximumFractionDigits: 2 })}
-                      </span>
-                      <span className="text-primary-600">MPa</span>
-                    </div>
+                  <div className="space-y-3">
+                    {targets.map((t) => {
+                      const a = predValue(results.predA, t.key);
+                      const b = predValue(results.predB, t.key);
+                      const diff = b - a;
+                      const digits = t.unit === "%" ? 2 : 1;
+                      return (
+                        <div key={t.key} className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+                          <div className="flex items-center justify-between mb-2">
+                            <span className="text-sm font-bold text-slate-700">{t.label}</span>
+                            <div className="flex items-center gap-1.5">
+                              {diff >= 0 ? <ArrowUp size={16} className="text-primary-600" /> : <ArrowDown size={16} className="text-destructive-500" />}
+                              <span className={`text-sm font-bold ${diff >= 0 ? "text-primary-600" : "text-destructive-500"}`}>
+                                {diff >= 0 ? "+" : ""}{diff.toLocaleString(undefined, { maximumFractionDigits: digits })} {t.unit}
+                              </span>
+                            </div>
+                          </div>
+                          <div className="grid grid-cols-2 gap-3 text-center">
+                            <div>
+                              <p className="text-[11px] font-semibold text-slate-400 uppercase tracking-widest">Material A</p>
+                              <span className="text-2xl font-bold text-slate-900">{a.toLocaleString(undefined, { maximumFractionDigits: digits })}</span>
+                              <span className="ml-1 text-xs text-slate-500">{t.unit}</span>
+                            </div>
+                            <div>
+                              <p className="text-[11px] font-semibold text-slate-400 uppercase tracking-widest">Material B</p>
+                              <span className="text-2xl font-bold text-slate-900">{b.toLocaleString(undefined, { maximumFractionDigits: digits })}</span>
+                              <span className="ml-1 text-xs text-slate-500">{t.unit}</span>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
                   </div>
                 </section>
 
                 <section className="panel">
                   <div className="panel-heading">
-                    <Scale size={20} className="text-primary-400" />
+                    <Scale size={20} className="text-primary-500" />
                     <h2>SHAP Feature Differences</h2>
                   </div>
-                  <p className="text-sm text-slate-500 mb-4">Comparing the top 5 most impactful features between the two materials.</p>
+                  <p className="text-sm text-slate-500 mb-4">Top 5 elements driving the <span className="font-semibold text-slate-700">Yield Strength</span> difference between the two materials.</p>
 
                   <div className="space-y-3">
                     {/* Compute top 5 differences. We use the absolute difference in shap value to find the biggest changes. */}

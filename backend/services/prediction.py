@@ -7,9 +7,11 @@ import joblib
 
 from ..utils.preprocessing import (
     InputValidationError,
-    TARGET_UNIT,
+    TARGETS,
+    TARGET_KEYS,
     feature_ranges,
     preprocess_input,
+    resolve_target,
     sweep_feature,
 )
 
@@ -22,7 +24,7 @@ class PredictionService:
     def __init__(self, model_path: str | Path, dataset_path: str | Path | None = None):
         self.model_path = Path(model_path)
         self.dataset_path = Path(dataset_path) if dataset_path else None
-        self.model = self._load_model()
+        self.models = self._load_model()
 
     def _load_model(self) -> Any:
         if not self.model_path.exists():
@@ -35,24 +37,50 @@ class PredictionService:
         except Exception as exc:
             raise ModelLoadError(f"Failed to load model from {self.model_path}: {exc}") from exc
 
-    def predict(self, payload: dict[str, Any]) -> dict[str, float | str]:
-        # ML flow: validate JSON, build the training-shaped DataFrame, then call sklearn.
+    def has_all_targets(self) -> bool:
+        """True only if the loaded artifact is the expected per-target model dict."""
+        return isinstance(self.models, dict) and all(key in self.models for key in TARGET_KEYS)
+
+    def _model_for(self, target_key: str) -> Any:
+        if not isinstance(self.models, dict) or target_key not in self.models:
+            raise ModelLoadError(f"Model for target '{target_key}' is not available.")
+        return self.models[target_key]
+
+    def predict(self, payload: dict[str, Any]) -> dict[str, Any]:
+        # ML flow: validate JSON, build the training-shaped DataFrame, then call sklearn
+        # once per mechanical property.
         features = preprocess_input(payload)
-        prediction = self.model.predict(features)[0]
 
-        return {
-            "prediction": round(float(prediction), 4),
-            "unit": TARGET_UNIT,
-        }
+        predictions = []
+        for target in TARGETS:
+            model = self._model_for(target["key"])
+            value = float(model.predict(features)[0])
+            predictions.append(
+                {
+                    "key": target["key"],
+                    "label": target["label"],
+                    "prediction": round(value, 4),
+                    "unit": target["unit"],
+                }
+            )
 
-    def sensitivity(self, payload: dict[str, Any], feature: str, points: int = 25) -> dict[str, Any]:
-        """Real dependence/sensitivity curve.
+        return {"predictions": predictions}
+
+    def sensitivity(
+        self,
+        payload: dict[str, Any],
+        feature: str,
+        target: str | None = None,
+        points: int = 25,
+    ) -> dict[str, Any]:
+        """Real dependence/sensitivity curve for one property.
 
         Holds every feature at the user's values and sweeps a single feature across
         the range seen in the training data, returning the model's actual predicted
-        yield strength at each step. This is a genuine Individual Conditional
-        Expectation (ICE) curve, not a synthetic approximation.
+        property at each step (an Individual Conditional Expectation / ICE curve).
         """
+        target_spec = resolve_target(target)
+        model = self._model_for(target_spec["key"])
         base_row = preprocess_input(payload)
 
         if self.dataset_path is None:
@@ -71,11 +99,13 @@ class PredictionService:
             high = low + 1.0
 
         swept = sweep_feature(base_row, feature, low, high, points)
-        predictions = self.model.predict(swept)
+        predictions = model.predict(swept)
 
         return {
             "feature": feature,
-            "unit": TARGET_UNIT,
+            "target": target_spec["key"],
+            "label": target_spec["label"],
+            "unit": target_spec["unit"],
             "current_value": round(current, 6),
             "points": [
                 {

@@ -10,7 +10,12 @@ from pydantic import BaseModel, ConfigDict, Field
 
 from .services.prediction import ModelLoadError, PredictionService
 from .services.shap_explainer import ShapExplainerService
-from .utils.preprocessing import FEATURE_COLUMNS, InputValidationError, TARGET_COLUMN
+from .utils.preprocessing import (
+    DEFAULT_TARGET,
+    FEATURE_COLUMNS,
+    InputValidationError,
+    TARGETS,
+)
 
 
 BASE_DIR = Path(__file__).resolve().parent
@@ -35,9 +40,15 @@ class MaterialFeatures(BaseModel):
         return data
 
 
+class ExplainRequest(BaseModel):
+    features: dict[str, Any] = Field(..., description="Material feature values.")
+    target: str = Field(default=DEFAULT_TARGET, description="Property to explain.")
+
+
 class DependenceRequest(BaseModel):
     features: dict[str, Any] = Field(..., description="Material feature values.")
     feature: str = Field(..., description="Feature to sweep for the sensitivity curve.")
+    target: str = Field(default=DEFAULT_TARGET, description="Property to analyse.")
     points: int = Field(default=25, ge=2, le=200, description="Number of sweep points.")
 
 
@@ -66,20 +77,31 @@ def load_model_once() -> None:
     try:
         import sklearn
 
-        from .train_model import model_sklearn_version, train_model_if_missing
+        from .train_model import (
+            MODEL_FORMAT,
+            model_format,
+            model_sklearn_version,
+            train_model_if_missing,
+        )
 
         train_model_if_missing()
 
-        if model_sklearn_version() != sklearn.__version__:
-            print(
-                f"Model trained with scikit-learn {model_sklearn_version()}, running "
-                f"{sklearn.__version__}. Retraining for consistency..."
-            )
+        # Retrain when the saved artifact is stale: different sklearn version
+        # (avoids InconsistentVersionWarning / invalid predictions) or an older
+        # model structure (e.g. single-target -> multi-target).
+        version_stale = model_sklearn_version() != sklearn.__version__
+        format_stale = model_format() != MODEL_FORMAT
+        if version_stale or format_stale:
+            reason = "version mismatch" if version_stale else "outdated model format"
+            print(f"Retraining model ({reason})...")
             train_model_if_missing(force=True)
 
         prediction_service = PredictionService(MODEL_PATH, DATASET_PATH)
+        if not prediction_service.has_all_targets():
+            train_model_if_missing(force=True)
+            prediction_service = PredictionService(MODEL_PATH, DATASET_PATH)
 
-        shap_service = ShapExplainerService(prediction_service.model)
+        shap_service = ShapExplainerService(prediction_service.models)
         startup_error = None
     except Exception as exc:
         startup_error = str(exc)
@@ -110,7 +132,7 @@ app.add_middleware(
 def health() -> dict[str, Any]:
     return {
         "status": "ok" if prediction_service and shap_service else "model_unavailable",
-        "target": TARGET_COLUMN,
+        "targets": [{"key": t["key"], "label": t["label"], "unit": t["unit"]} for t in TARGETS],
         "required_features": FEATURE_COLUMNS,
         "model_path": str(MODEL_PATH),
         "error": startup_error,
@@ -118,7 +140,7 @@ def health() -> dict[str, Any]:
 
 
 @app.post("/predict")
-def predict(request: MaterialFeatures) -> dict[str, float | str]:
+def predict(request: MaterialFeatures) -> dict[str, Any]:
     service = _prediction_service()
     try:
         return service.predict(request.as_feature_payload())
@@ -129,10 +151,10 @@ def predict(request: MaterialFeatures) -> dict[str, float | str]:
 
 
 @app.post("/explain")
-def explain(request: MaterialFeatures) -> dict[str, Any]:
+def explain(request: ExplainRequest) -> dict[str, Any]:
     service = _shap_service()
     try:
-        return service.explain(request.as_feature_payload())
+        return service.explain(request.features, request.target)
     except InputValidationError as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
     except Exception as exc:
@@ -143,7 +165,7 @@ def explain(request: MaterialFeatures) -> dict[str, Any]:
 def dependence(request: DependenceRequest) -> dict[str, Any]:
     service = _prediction_service()
     try:
-        return service.sensitivity(request.features, request.feature, request.points)
+        return service.sensitivity(request.features, request.feature, request.target, request.points)
     except InputValidationError as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
     except Exception as exc:

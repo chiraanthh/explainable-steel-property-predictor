@@ -12,6 +12,7 @@ export default function DependenceChart({ dependence, featureLabel, loading }) {
 
   const data = points.map((p) => ({ featureValue: p.feature_value, prediction: p.prediction }));
   const unit = dependence?.unit ?? "MPa";
+  const propertyLabel = dependence?.label ?? "strength";
   const current = dependence?.current_value;
 
   return (
@@ -33,7 +34,7 @@ export default function DependenceChart({ dependence, featureLabel, loading }) {
             tick={{ fill: "#64748b", fontSize: 12 }}
             domain={["auto", "auto"]}
             tickFormatter={(v) => Number(v).toLocaleString(undefined, { maximumFractionDigits: 0 })}
-            label={{ value: `Predicted strength (${unit})`, angle: -90, position: "insideLeft", fill: "#475569", fontSize: 12, style: { textAnchor: "middle" } }}
+            label={{ value: `Predicted ${propertyLabel} (${unit})`, angle: -90, position: "insideLeft", fill: "#475569", fontSize: 12, style: { textAnchor: "middle" } }}
           />
           <Tooltip
             cursor={{ stroke: "#c7d2fe" }}

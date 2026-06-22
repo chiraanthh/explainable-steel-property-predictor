@@ -1,7 +1,7 @@
-# Explainable AI-Based Yield Strength Prediction of Steel Alloys Using SHAP
+# Explainable AI-Based Mechanical Property Prediction of Steel Alloys Using SHAP
 
 ## Overview
-This repository contains a polished academic research prototype that bridges the gap between advanced Machine Learning and trustworthy material science. The system predicts the **Yield Strength of steel alloys** from their chemical composition, and importantly, explains those predictions using **SHAP (SHapley Additive exPlanations)**.
+This repository contains a polished academic research prototype that bridges the gap between advanced Machine Learning and trustworthy material science. The system predicts three mechanical properties of **steel alloys** — **Yield Strength**, **Tensile Strength** (MPa), and **Elongation** (%) — from their chemical composition, and importantly, explains those predictions using **SHAP (SHapley Additive exPlanations)**.
 
 The model is trained on a curated **steel-alloy dataset** (`steel_strength.csv`) of 14 compositional elements — Iron (Fe) as the balance element, plus Carbon, Manganese, Silicon, Chromium, Nickel, Molybdenum, Vanadium, Nitrogen, Niobium, Cobalt, Tungsten, Aluminium and Titanium.
 
@@ -31,7 +31,15 @@ Traditional steel property testing is expensive, destructive, and time-consuming
 - **Backend**: FastAPI, Scikit-Learn (RandomForestRegressor), SHAP, Pandas.
 
 ## Model
-A `RandomForestRegressor` trained on `steel_strength.csv` (R² ≈ 0.82, MAE ≈ 79 MPa on a held-out split).
+One `RandomForestRegressor` per property, trained on `steel_strength.csv` (held-out split):
+
+| Property | R² | MAE |
+| --- | --- | --- |
+| Yield Strength | ≈ 0.82 | ≈ 79 MPa |
+| Tensile Strength | ≈ 0.88 | ≈ 71 MPa |
+| Elongation | ≈ 0.38 | ≈ 2.7 % |
+
+Elongation is inherently harder to predict from composition alone, so its R² is lower — this is expected for the dataset. Use the **Explaining** selector in the dashboard to view SHAP analysis for any of the three properties.
 
 The backend is **self-healing**: on startup it trains the model if `model.pkl` is missing, and automatically retrains it if the saved model's scikit-learn version differs from the installed one (avoiding `InconsistentVersionWarning` / invalid predictions). Dependency versions are pinned in `requirements.txt` for reproducible installs.
 

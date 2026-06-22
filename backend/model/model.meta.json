@@ -1,1 +1,1 @@
-{"sklearn_version": "1.9.0", "r2": 0.8244, "mae": 78.8037}
+{"format": "multi-target-v1", "sklearn_version": "1.9.0", "targets": ["yield_strength", "tensile_strength", "elongation"], "metrics": {"yield_strength": {"r2": 0.8244, "mae": 78.8037, "samples": 312}, "tensile_strength": {"r2": 0.8774, "mae": 70.7425, "samples": 312}, "elongation": {"r2": 0.3788, "mae": 2.7153, "samples": 303}}}

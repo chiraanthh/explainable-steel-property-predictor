@@ -21,10 +21,10 @@ export function predictMaterial(payload) {
   return postJson("/predict", payload);
 }
 
-export function explainMaterial(payload) {
-  return postJson("/explain", payload);
+export function explainMaterial(payload, target = "yield_strength") {
+  return postJson("/explain", { features: payload, target });
 }
 
-export function dependenceMaterial(payload, feature, points = 25) {
-  return postJson("/dependence", { features: payload, feature, points });
+export function dependenceMaterial(payload, feature, target = "yield_strength", points = 25) {
+  return postJson("/dependence", { features: payload, feature, target, points });
 }

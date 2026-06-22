@@ -15,22 +15,34 @@ from sklearn.ensemble import RandomForestRegressor
 from sklearn.metrics import mean_absolute_error, r2_score
 from sklearn.model_selection import train_test_split
 
-from backend.utils.preprocessing import TARGET_COLUMN, preprocess_training_data
+from backend.utils.preprocessing import TARGETS, TARGET_KEYS, preprocess_training_data
 
 
 DATASET_PATH = PROJECT_DIR / "steel_strength.csv"
 MODEL_PATH = BASE_DIR / "model" / "model.pkl"
 META_PATH = BASE_DIR / "model" / "model.meta.json"
 
+# Bump when the on-disk model structure changes so old artifacts are retrained.
+MODEL_FORMAT = "multi-target-v1"
+
+
+def _read_meta() -> dict:
+    if not META_PATH.exists():
+        return {}
+    try:
+        return json.loads(META_PATH.read_text())
+    except (ValueError, OSError):
+        return {}
+
 
 def model_sklearn_version() -> str | None:
     """Return the scikit-learn version the saved model was trained with, if known."""
-    if not META_PATH.exists():
-        return None
-    try:
-        return json.loads(META_PATH.read_text()).get("sklearn_version")
-    except (ValueError, OSError):
-        return None
+    return _read_meta().get("sklearn_version")
+
+
+def model_format() -> str | None:
+    """Return the saved model's structural format tag, if known."""
+    return _read_meta().get("format")
 
 
 def train_model_if_missing(force: bool = False) -> Path:
@@ -38,37 +50,40 @@ def train_model_if_missing(force: bool = False) -> Path:
         print(f"Model already exists: {MODEL_PATH}")
         return MODEL_PATH
 
-    X, y = preprocess_training_data(str(DATASET_PATH))
-    X_train, X_test, y_train, y_test = train_test_split(
-        X,
-        y,
-        test_size=0.2,
-        random_state=42,
-    )
+    models: dict = {}
+    metrics: dict = {}
 
-    # Mirrors the notebook's sklearn regression path, but keeps the backend artifact
-    # compact and deterministic for API inference.
-    model = RandomForestRegressor(
-        n_estimators=300,
-        random_state=42,
-        min_samples_leaf=2,
-        n_jobs=-1,
-    )
-    model.fit(X_train, y_train)
+    for target in TARGETS:
+        X, y = preprocess_training_data(str(DATASET_PATH), target["column"])
+        X_train, X_test, y_train, y_test = train_test_split(
+            X, y, test_size=0.2, random_state=42
+        )
 
-    y_pred = model.predict(X_test)
-    print(f"Target: {TARGET_COLUMN}")
-    print(f"R2: {r2_score(y_test, y_pred):.4f}")
-    print(f"MAE: {mean_absolute_error(y_test, y_pred):.4f} MPa")
+        model = RandomForestRegressor(
+            n_estimators=300,
+            random_state=42,
+            min_samples_leaf=2,
+            n_jobs=-1,
+        )
+        model.fit(X_train, y_train)
+
+        y_pred = model.predict(X_test)
+        r2 = round(float(r2_score(y_test, y_pred)), 4)
+        mae = round(float(mean_absolute_error(y_test, y_pred)), 4)
+        metrics[target["key"]] = {"r2": r2, "mae": mae, "samples": int(len(X))}
+        print(f"Target: {target['label']:<16} R2: {r2:.4f}  MAE: {mae:.4f} {target['unit']}  (n={len(X)})")
+
+        models[target["key"]] = model
 
     MODEL_PATH.parent.mkdir(parents=True, exist_ok=True)
-    joblib.dump(model, MODEL_PATH)
+    joblib.dump(models, MODEL_PATH)
     META_PATH.write_text(
         json.dumps(
             {
+                "format": MODEL_FORMAT,
                 "sklearn_version": sklearn.__version__,
-                "r2": round(float(r2_score(y_test, y_pred)), 4),
-                "mae": round(float(mean_absolute_error(y_test, y_pred)), 4),
+                "targets": TARGET_KEYS,
+                "metrics": metrics,
             }
         )
     )

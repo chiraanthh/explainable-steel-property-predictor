@@ -23,8 +23,30 @@ FEATURE_COLUMNS = [
     "ti",
 ]
 
-TARGET_COLUMN = "yield strength"
-TARGET_UNIT = "MPa"
+# The dataset provides three mechanical properties; the backend trains one model
+# per property so each can be predicted and explained with SHAP independently.
+TARGETS = [
+    {"key": "yield_strength", "column": "yield strength", "label": "Yield Strength", "unit": "MPa"},
+    {"key": "tensile_strength", "column": "tensile strength", "label": "Tensile Strength", "unit": "MPa"},
+    {"key": "elongation", "column": "elongation", "label": "Elongation", "unit": "%"},
+]
+TARGET_BY_KEY = {target["key"]: target for target in TARGETS}
+TARGET_KEYS = [target["key"] for target in TARGETS]
+DEFAULT_TARGET = "yield_strength"
+
+# Backwards-compatible single-target aliases (yield strength is the primary target).
+TARGET_COLUMN = TARGETS[0]["column"]
+TARGET_UNIT = TARGETS[0]["unit"]
+
+
+def resolve_target(key: str | None) -> dict[str, str]:
+    """Return the target spec for a key, defaulting to yield strength."""
+    if key is None:
+        return TARGET_BY_KEY[DEFAULT_TARGET]
+    if key not in TARGET_BY_KEY:
+        valid = ", ".join(TARGET_KEYS)
+        raise InputValidationError(f"Unknown target '{key}'. Valid targets: {valid}.")
+    return TARGET_BY_KEY[key]
 
 FEATURE_ALIASES = {
     "iron_percentage": "Fe",
@@ -129,21 +151,24 @@ def sweep_feature(
     return pd.DataFrame(rows, columns=FEATURE_COLUMNS).reset_index(drop=True)
 
 
-def preprocess_training_data(dataset_path: str) -> tuple[pd.DataFrame, pd.Series]:
-    """Prepare the notebook dataset for model training without changing its intent.
+def preprocess_training_data(dataset_path: str, target_column: str = TARGET_COLUMN) -> tuple[pd.DataFrame, pd.Series]:
+    """Prepare the dataset for training a single mechanical-property model.
 
-    The original notebook drops the chemical formula text column, fills missing numeric
-    values with column means, and predicts mechanical properties from composition. This
-    backend trains only yield strength because the requested API response is a single
-    MPa prediction.
+    Drops the chemical formula text column, fills missing feature values with column
+    means, and drops rows where the requested target property is missing so each
+    property is trained only on the samples that actually measured it.
     """
     df = pd.read_csv(dataset_path)
     df = df.drop(columns=["formula"], errors="ignore")
-    df = df.fillna(df.mean(numeric_only=True))
 
-    missing_columns = [column for column in [*FEATURE_COLUMNS, TARGET_COLUMN] if column not in df.columns]
+    missing_columns = [column for column in [*FEATURE_COLUMNS, target_column] if column not in df.columns]
     if missing_columns:
         missing = ", ".join(missing_columns)
         raise InputValidationError(f"Dataset is missing required columns: {missing}.")
 
-    return df[FEATURE_COLUMNS], df[TARGET_COLUMN]
+    # Fill feature gaps with the column mean; require a real measurement for the target.
+    for column in FEATURE_COLUMNS:
+        df[column] = df[column].fillna(df[column].mean())
+    df = df.dropna(subset=[target_column])
+
+    return df[FEATURE_COLUMNS], df[target_column]

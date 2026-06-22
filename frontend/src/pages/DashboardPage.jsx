@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { AlertCircle, FileDown } from "lucide-react";
 import { dependenceMaterial, explainMaterial, predictMaterial } from "../api/materialApi";
-import { compositionFields, initialFormState, modelPayloadFromForm } from "../data/features";
+import { compositionFields, initialFormState, modelPayloadFromForm, targets } from "../data/features";
 import ExplanationDashboard from "../components/ExplanationDashboard";
 import PredictionForm from "../components/PredictionForm";
 import PredictionResult from "../components/PredictionResult";
@@ -38,6 +38,7 @@ export default function DashboardPage() {
   const [submittedPayload, setSubmittedPayload] = useState(null);
   const [dependence, setDependence] = useState(null);
   const [dependenceLoading, setDependenceLoading] = useState(false);
+  const [selectedTarget, setSelectedTarget] = useState(targets[0].key);
   const [selectedFeature, setSelectedFeature] = useState(compositionFields[0].name);
   const [isLoading, setIsLoading] = useState(false);
   const [apiError, setApiError] = useState("");
@@ -47,13 +48,29 @@ export default function DashboardPage() {
     return Math.round((filled / compositionFields.length) * 100);
   }, [values]);
 
-  // Fetch a real sensitivity curve whenever there is a submitted material and the
-  // user selects a different element to inspect.
+  // Refetch the SHAP explanation whenever there is a submitted material or the user
+  // switches which property to explain.
+  useEffect(() => {
+    if (!submittedPayload) return;
+    let cancelled = false;
+    explainMaterial(submittedPayload, selectedTarget)
+      .then((data) => {
+        if (!cancelled) setExplanation(data);
+      })
+      .catch(() => {
+        if (!cancelled) setExplanation(null);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [submittedPayload, selectedTarget]);
+
+  // Real sensitivity curve for the selected element + property.
   useEffect(() => {
     if (!submittedPayload) return;
     let cancelled = false;
     setDependenceLoading(true);
-    dependenceMaterial(submittedPayload, selectedFeature, 25)
+    dependenceMaterial(submittedPayload, selectedFeature, selectedTarget, 25)
       .then((data) => {
         if (!cancelled) setDependence(data);
       })
@@ -66,7 +83,7 @@ export default function DashboardPage() {
     return () => {
       cancelled = true;
     };
-  }, [submittedPayload, selectedFeature]);
+  }, [submittedPayload, selectedFeature, selectedTarget]);
 
   function handleChange(name, value) {
     const isCompositionField = compositionFields.some((f) => f.name === name) && name !== "Fe";
@@ -105,13 +122,9 @@ export default function DashboardPage() {
     setIsLoading(true);
     try {
       const payload = modelPayloadFromForm(values);
-      const [predictionResponse, explanationResponse] = await Promise.all([
-        predictMaterial(payload),
-        explainMaterial(payload),
-      ]);
+      const predictionResponse = await predictMaterial(payload);
       setPrediction(predictionResponse);
-      setExplanation(explanationResponse);
-      setSubmittedPayload(payload); // triggers the sensitivity fetch effect
+      setSubmittedPayload(payload); // triggers explanation + sensitivity fetches
     } catch (error) {
       setApiError(error.message);
       setPrediction(null);
@@ -124,21 +137,26 @@ export default function DashboardPage() {
   }
 
   function handleDownloadReport() {
-    if (!prediction || !explanation) return;
+    if (!prediction) return;
 
     const doc = new jsPDF();
     doc.setFontSize(18);
-    doc.text("Steel Alloy Yield Strength Prediction Report", 20, 20);
+    doc.text("Steel Alloy Mechanical Property Report", 20, 20);
 
+    doc.setFontSize(13);
+    doc.text("Predicted Properties:", 20, 34);
     doc.setFontSize(12);
-    doc.text(
-      `Predicted Yield Strength: ${Number(prediction.prediction).toLocaleString(undefined, { maximumFractionDigits: 2 })} ${prediction.unit}`,
-      20,
-      35,
-    );
+    let y = 43;
+    (prediction.predictions ?? []).forEach((p) => {
+      doc.text(`${p.label}: ${Number(p.prediction).toLocaleString(undefined, { maximumFractionDigits: 2 })} ${p.unit}`, 30, y);
+      y += 8;
+    });
 
-    doc.text("Composition (wt %):", 20, 50);
-    let y = 60;
+    y += 4;
+    doc.setFontSize(13);
+    doc.text("Composition (wt %):", 20, y);
+    doc.setFontSize(12);
+    y += 9;
     compositionFields.forEach((field) => {
       const val = field.name === "Fe" ? values.Fe : values[field.name];
       doc.text(`${field.label} (${field.symbol}): ${val}`, 30, y);
@@ -149,27 +167,27 @@ export default function DashboardPage() {
       }
     });
 
-    y += 10;
-    if (y > 270) {
-      doc.addPage();
-      y = 20;
+    if (explanation?.features?.length) {
+      y += 6;
+      if (y > 260) {
+        doc.addPage();
+        y = 20;
+      }
+      doc.setFontSize(13);
+      doc.text(`Top SHAP Drivers for ${explanation.label}:`, 20, y);
+      doc.setFontSize(12);
+      y += 9;
+      const sortedFeatures = [...explanation.features]
+        .sort((a, b) => Math.abs(b.shap_value) - Math.abs(a.shap_value))
+        .slice(0, 5);
+      sortedFeatures.forEach((f) => {
+        const effect = f.contribution === "positive" ? "Increases" : "Decreases";
+        doc.text(`- ${f.name}: ${Math.abs(f.shap_value).toFixed(2)} (${effect})`, 30, y);
+        y += 8;
+      });
     }
 
-    doc.setFontSize(14);
-    doc.text("Top SHAP Feature Importances:", 20, y);
-    doc.setFontSize(12);
-    y += 10;
-
-    const sortedFeatures = [...explanation.features]
-      .sort((a, b) => Math.abs(b.shap_value) - Math.abs(a.shap_value))
-      .slice(0, 5);
-    sortedFeatures.forEach((f) => {
-      const effect = f.contribution === "positive" ? "Increases" : "Decreases";
-      doc.text(`- ${f.name}: ${Math.abs(f.shap_value).toFixed(2)} (${effect} prediction)`, 30, y);
-      y += 8;
-    });
-
-    doc.save("Steel_Yield_Strength_Report.pdf");
+    doc.save("Steel_Property_Report.pdf");
   }
 
   return (
@@ -214,7 +232,7 @@ export default function DashboardPage() {
         <div className="mb-6 flex items-center gap-3 rounded-lg border border-primary-500/20 bg-primary-50 px-4 py-3 text-xs font-medium text-slate-600">
           <AlertCircle size={14} className="text-primary-500 shrink-0" />
           <p>
-            <span className="font-bold text-primary-600">Note:</span> Enter the steel-alloy composition in weight %. Iron (Fe) auto-balances so the composition totals 100%. The model predicts Yield Strength from these 14 elements.
+            <span className="font-bold text-primary-600">Note:</span> Enter the steel-alloy composition in weight %. Iron (Fe) auto-balances so the composition totals 100%. The model predicts Yield Strength, Tensile Strength and Elongation from these 14 elements.
           </p>
         </div>
 
@@ -234,6 +252,8 @@ export default function DashboardPage() {
             explanation={explanation}
             dependence={dependence}
             dependenceLoading={dependenceLoading}
+            selectedTarget={selectedTarget}
+            onSelectedTargetChange={setSelectedTarget}
             selectedFeature={selectedFeature}
             onSelectedFeatureChange={setSelectedFeature}
           />
