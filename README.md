@@ -33,7 +33,6 @@
 
 ![Compare Page](assets/screenshot_compare.png)
 
-> Place these images in `assets/` at the repo root for GitHub to render them.
 
 ---
 
